@@ -358,11 +358,11 @@ onUnmounted(() => {
   max-width: 450px;
   margin: 0 auto;
   padding: 2.5rem;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: var(--eg-radius-2xl);
   box-shadow: 0 8px 20px rgba(143, 188, 143, 0.1);
   border: 1px solid rgba(229, 231, 235, 0.8);
-  backdrop-filter: blur(5px);
+  /* Removed backdrop-filter for HD clarity */
 }
 
 .card-title {
@@ -390,11 +390,11 @@ onUnmounted(() => {
 .form-row input,
 .form-row select {
   padding: 0.9rem 1.2rem;
-  border-radius: 10px;
+  border-radius: var(--eg-radius-lg);
   border: 1px solid rgba(209, 213, 219, 0.8);
   font-size: 1rem;
   transition: all 0.2s ease;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.95);
 }
 
 .form-row input:focus,
@@ -454,22 +454,22 @@ onUnmounted(() => {
 
 .error-message {
   color: #EF4444;
-  background: rgba(254, 242, 242, 0.9);
+  background: rgba(254, 242, 242, 0.95);
   padding: 0.85rem;
-  border-radius: 10px;
+  border-radius: var(--eg-radius-lg);
   margin-bottom: 1.2rem;
   border: 1px solid rgba(254, 202, 202, 0.8);
-  backdrop-filter: blur(2px);
+  /* Removed backdrop-filter for HD clarity */
 }
 
 .success-message {
   color: #10B981;
-  background: rgba(236, 253, 245, 0.9);
+  background: rgba(236, 253, 245, 0.95);
   padding: 0.85rem;
-  border-radius: 10px;
+  border-radius: var(--eg-radius-lg);
   margin-bottom: 1.2rem;
   border: 1px solid rgba(167, 243, 208, 0.8);
-  backdrop-filter: blur(2px);
+  /* Removed backdrop-filter for HD clarity */
 }
 
 .form-help {
