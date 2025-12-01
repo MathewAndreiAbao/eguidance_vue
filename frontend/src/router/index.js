@@ -11,6 +11,8 @@ const routes = [
   ,{ path: '/announcements', component: () => import('../views/Announcements.vue'), meta: { requiresAuth: true } }
   ,{ path: '/resources', component: () => import('../views/Resources.vue'), meta: { requiresAuth: true } }
   ,{ path: '/reports', component: () => import('../views/Reports.vue'), meta: { requiresAuth: true } }
+    ,{ path: '/feedback', component: () => import('../views/Feedback.vue'), meta: { requiresAuth: true } }
+      ,{ path: '/career-guidance', component: () => import('../views/CareerGuidance.vue'), meta: { requiresAuth: true } }
 ];
 
 const router = createRouter({

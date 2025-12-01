@@ -22,5 +22,7 @@ router.get('/responses/student/:id', authenticate, requireRole(['student']), wel
 // Counselor routes for viewing responses
 router.get('/responses/counselor', authenticate, requireRole(['counselor']), wellnessController.getCounselorResponses);
 router.get('/responses/counselor/:id', authenticate, requireRole(['counselor']), wellnessController.getResponseById);
+router.put('/responses/counselor/:id/notes', authenticate, requireRole(['counselor']), wellnessController.addCounselorNotes);
+router.get('/statistics', authenticate, requireRole(['counselor']), wellnessController.getCounselorStatistics);
 
 module.exports = router;

@@ -29,7 +29,10 @@
 
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useUserStore } from '../store/userStore'
+
+const router = useRouter()
 const store = useUserStore()
 
 const loading = ref(true)
@@ -66,7 +69,7 @@ async function onSave(){
 
 function onLogout(){
   store.logout()
-  window.location.href = '/login'
+  router.push('/login')
 }
 </script>
 

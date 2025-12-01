@@ -44,7 +44,6 @@
         >
           Student Responses
         </button>
-
         <button 
           :class="['tab', { active: activeTab === 'create-form' }]"
           @click="activeTab = 'create-form'"
@@ -294,33 +293,6 @@
                 <p>{{ getAnswerLabel(selectedResponse.form_type, index, selectedResponse.responses[index]) }}</p>
               </div>
             </div>
-            
-            <!-- Counselor Notes Section -->
-            <div class="counselor-notes-section" v-if="user && user.role === 'counselor'">
-              <h4>Counselor Notes</h4>
-              <div v-if="!editingNotes">
-                <div v-if="selectedResponse.counselor_notes" class="notes-content">
-                  {{ selectedResponse.counselor_notes }}
-                </div>
-                <div v-else class="no-notes">
-                  No notes added yet.
-                </div>
-                <button @click="startEditingNotes" class="btn btn-primary mt-2">{{ selectedResponse.counselor_notes ? 'Edit Notes' : 'Add Notes' }}</button>
-              </div>
-              <div v-else>
-                <textarea 
-                  v-model="counselorNotes" 
-                  class="form-control" 
-                  rows="4" 
-                  placeholder="Add your notes about this response..."
-                ></textarea>
-                <div class="notes-actions mt-2">
-                  <button @click="saveCounselorNotes" class="btn btn-primary" :disabled="savingNotes">{{ savingNotes ? 'Saving...' : 'Save Notes' }}</button>
-                  <button @click="cancelEditingNotes" class="btn btn-secondary ms-2">Cancel</button>
-                </div>
-                <div v-if="notesError" class="error-message mt-2">{{ notesError }}</div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -372,12 +344,6 @@ const formResponses = ref([])
 
 const showResponseModal = ref(false)
 const selectedResponse = ref({})
-
-// Counselor notes
-const editingNotes = ref(false)
-const counselorNotes = ref('')
-const savingNotes = ref(false)
-const notesError = ref(null)
 
 // Computed properties for pagination
 const paginatedForms = computed(() => {
@@ -666,55 +632,11 @@ function viewResponse(response) {
 function viewCounselorResponse(response) {
   selectedResponse.value = response
   showResponseModal.value = true
-  editingNotes.value = false
-  counselorNotes.value = response.counselor_notes || ''
 }
 
 function closeResponseModal() {
   showResponseModal.value = false
   selectedResponse.value = {}
-  editingNotes.value = false
-  counselorNotes.value = ''
-  notesError.value = null
-}
-
-function startEditingNotes() {
-  editingNotes.value = true
-  counselorNotes.value = selectedResponse.value.counselor_notes || ''
-}
-
-function cancelEditingNotes() {
-  editingNotes.value = false
-  counselorNotes.value = selectedResponse.value.counselor_notes || ''
-  notesError.value = null
-}
-
-async function saveCounselorNotes() {
-  savingNotes.value = true
-  notesError.value = null
-  
-  try {
-    await api.put(`/wellness/responses/counselor/${selectedResponse.value.id}/notes`, {
-      notes: counselorNotes.value
-    })
-    
-    // Update the response with the new notes
-    selectedResponse.value.counselor_notes = counselorNotes.value
-    editingNotes.value = false
-    
-    // Also update in the counselorResponses list
-    const index = counselorResponses.value.findIndex(r => r.id === selectedResponse.value.id)
-    if (index !== -1) {
-      counselorResponses.value[index].counselor_notes = counselorNotes.value
-    }
-    
-    alert('Notes saved successfully!')
-  } catch (err) {
-    notesError.value = err.response?.data?.message || 'Failed to save notes'
-    console.error('Error saving notes:', err)
-  } finally {
-    savingNotes.value = false
-  }
 }
 
 async function createForm() {
@@ -929,14 +851,6 @@ onMounted(async () => {
   border-color: #8FBC8F;
   transform: translateY(-3px);
   box-shadow: 0 6px 10px rgba(143, 188, 143, 0.1);
-}
-
-.mt-2 {
-  margin-top: 1rem;
-}
-
-.ms-2 {
-  margin-left: 0.5rem;
 }
 
 .counselor-response {
@@ -1185,35 +1099,5 @@ onMounted(async () => {
   margin-bottom: 0;
   color: #374151;
   font-weight: 500;
-}
-
-.counselor-notes-section {
-  margin-top: 30px;
-  padding-top: 20px;
-  border-top: 1px solid #E5E7EB;
-}
-
-.counselor-notes-section h4 {
-  color: #374151;
-  margin-bottom: 15px;
-}
-
-.notes-content {
-  background-color: #F9FAFB;
-  border-radius: 8px;
-  padding: 15px;
-  white-space: pre-wrap;
-  color: #374151;
-}
-
-.no-notes {
-  color: #9CA3AF;
-  font-style: italic;
-  padding: 15px 0;
-}
-
-.notes-actions {
-  display: flex;
-  gap: 10px;
 }
 </style>

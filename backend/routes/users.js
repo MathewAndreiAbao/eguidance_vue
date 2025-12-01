@@ -5,7 +5,19 @@ const auth = require('../middleware/auth');
 
 router.get('/counselors', auth, async (req, res) => {
   try {
-    const [rows] = await pool.query("SELECT id, name, email FROM users WHERE role = 'counselor'");
+    const search = req.query.search || '';
+    let query = "SELECT id, name, email FROM users WHERE role = 'counselor'";
+    const params = [];
+    
+    // Add search filter for counselor name
+    if (search.trim()) {
+      query += ' AND name LIKE ?';
+      const searchTerm = `%${search.trim()}%`;
+      params.push(searchTerm);
+    }
+    
+    query += ' ORDER BY name';
+    const [rows] = await pool.query(query, params);
     res.json(rows);
   } catch (err) {
     console.error(err);

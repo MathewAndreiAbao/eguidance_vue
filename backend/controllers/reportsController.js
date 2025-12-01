@@ -49,41 +49,13 @@ exports.getWeeklyStats = async (req, res) => {
       [req.user.id, weekStart.toISOString().split('T')[0], weekEnd.toISOString().split('T')[0]]
     );
 
-    // Get activity data from user_activity table
-    const [activities] = await pool.query(
-      `SELECT 
-        user_id,
-        COUNT(*) AS activity_count,
-        activity_type
-      FROM user_activity
-      WHERE activity_date >= ? 
-        AND activity_date <= ?
-      GROUP BY user_id, activity_type`,
-      [weekStart.toISOString().split('T')[0], weekEnd.toISOString().split('T')[0]]
-    );
-
-    // Combine data
-    const studentMap = new Map();
-    students.forEach(s => {
-      studentMap.set(s.id, {
-        ...s,
-        activities: []
-      });
-    });
-
-    activities.forEach(a => {
-      if (studentMap.has(a.user_id)) {
-        studentMap.get(a.user_id).activities.push(a);
-      }
-    });
-
     res.json({
       period: {
         start: weekStart.toISOString().split('T')[0],
         end: weekEnd.toISOString().split('T')[0]
       },
-      students: Array.from(studentMap.values()),
-      total_students: studentMap.size
+      students: students,
+      total_students: students.length
     });
   } catch (err) {
     console.error(err);
@@ -137,34 +109,6 @@ exports.getMonthlyStats = async (req, res) => {
       [req.user.id, monthStart.toISOString().split('T')[0], monthEnd.toISOString().split('T')[0]]
     );
 
-    // Get activity data from user_activity table
-    const [activities] = await pool.query(
-      `SELECT 
-        user_id,
-        COUNT(*) AS activity_count,
-        activity_type
-      FROM user_activity
-      WHERE activity_date >= ? 
-        AND activity_date <= ?
-      GROUP BY user_id, activity_type`,
-      [monthStart.toISOString().split('T')[0], monthEnd.toISOString().split('T')[0]]
-    );
-
-    // Combine data
-    const studentMap = new Map();
-    students.forEach(s => {
-      studentMap.set(s.id, {
-        ...s,
-        activities: []
-      });
-    });
-
-    activities.forEach(a => {
-      if (studentMap.has(a.user_id)) {
-        studentMap.get(a.user_id).activities.push(a);
-      }
-    });
-
     res.json({
       period: {
         year: monthStart.getFullYear(),
@@ -172,8 +116,8 @@ exports.getMonthlyStats = async (req, res) => {
         start: monthStart.toISOString().split('T')[0],
         end: monthEnd.toISOString().split('T')[0]
       },
-      students: Array.from(studentMap.values()),
-      total_students: studentMap.size
+      students: students,
+      total_students: students.length
     });
   } catch (err) {
     console.error(err);
@@ -284,7 +228,52 @@ async function getStatsData(userId, viewMode, params) {
   
   const [students] = await pool.query(query, queryParams);
 
-  return { students, period };
+  // Get activity data from user_activity table
+  let activityQuery;
+  if (viewMode === 'weekly') {
+    activityQuery = `
+      SELECT 
+        user_id,
+        COUNT(*) AS activity_count,
+        activity_type
+      FROM user_activity
+      WHERE activity_date >= ? 
+        AND activity_date <= ?
+        AND user_id IN (SELECT DISTINCT student_id FROM appointments WHERE counselor_id = ?)
+      GROUP BY user_id, activity_type
+    `;
+  } else {
+    activityQuery = `
+      SELECT 
+        user_id,
+        COUNT(*) AS activity_count,
+        activity_type
+      FROM user_activity
+      WHERE activity_date >= ? 
+        AND activity_date <= ?
+        AND user_id IN (SELECT DISTINCT student_id FROM appointments WHERE counselor_id = ?)
+      GROUP BY user_id, activity_type
+    `;
+  }
+  
+  const [activities] = await pool.query(activityQuery, [startDate, endDate, userId]);
+
+  // Combine data
+  const studentMap = new Map();
+  students.forEach(s => {
+    studentMap.set(s.id, {
+      ...s,
+      activities: []
+    });
+  });
+
+  activities.forEach(a => {
+    if (studentMap.has(a.user_id)) {
+      studentMap.get(a.user_id).activities.push(a);
+    }
+  });
+
+  return { students: Array.from(studentMap.values()), period };
 }
 
 // Download weekly stats as CSV

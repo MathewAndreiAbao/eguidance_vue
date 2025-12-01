@@ -3,16 +3,25 @@ const pool = require('../config/db');
 exports.createAppointment = async (req, res) => {
   let { counselor_id, date, time, student_id } = req.body;
 
+  // For students, set student_id from the authenticated user
   if (req.user.role === 'student') {
     student_id = req.user.id;
-    if (!counselor_id) return res.status(400).json({ message: 'counselor_id, date and time are required' });
+    // Validate that counselor_id is provided
+    if (!counselor_id) return res.status(400).json({ message: 'counselor_id is required' });
+  }
+  // For counselors, set counselor_id from the authenticated user
+  else if (req.user.role === 'counselor') {
+    counselor_id = req.user.id;
+    // Validate that student_id is provided
+    if (!student_id) return res.status(400).json({ message: 'student_id is required when counselor creates' });
+  }
+  // If neither student nor counselor, reject
+  else {
+    return res.status(403).json({ message: 'Only students and counselors can create appointments' });
   }
 
-  if (req.user.role === 'counselor') {
-    counselor_id = req.user.id;
-    if (!student_id) return res.status(400).json({ message: 'student_id, date and time are required when counselor creates' });
-  }
-  if (!counselor_id || !student_id || !date || !time) return res.status(400).json({ message: 'counselor_id, student_id, date and time are required' });
+  // Validate required fields
+  if (!date || !time) return res.status(400).json({ message: 'date and time are required' });
 
   if (isNaN(Date.parse(date))) return res.status(400).json({ message: 'Invalid date format' });
 
@@ -29,12 +38,12 @@ exports.createAppointment = async (req, res) => {
   }
 
   try {
- 
+    // Validate counselor
     const [cRows] = await pool.query('SELECT id, role FROM users WHERE id = ?', [counselor_id]);
     if (!cRows.length) return res.status(400).json({ message: 'Counselor not found' });
     if (cRows[0].role !== 'counselor') return res.status(400).json({ message: 'User is not a counselor' });
 
- 
+    // Validate student
     const [sRows] = await pool.query('SELECT id, role FROM users WHERE id = ?', [student_id]);
     if (!sRows.length) return res.status(400).json({ message: 'Student not found' });
     if (sRows[0].role !== 'student') return res.status(400).json({ message: 'User is not a student' });

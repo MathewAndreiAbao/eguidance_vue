@@ -37,7 +37,7 @@ exports.register = async (req, res) => {
   }
 };
 
-// Standard email/password login - triggers OTP
+// Standard email/password login - no OTP
 exports.login = async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
@@ -50,43 +50,45 @@ exports.login = async (req, res) => {
     const ok = await bcrypt.compare(password, user.password);
     if (!ok) return res.status(400).json({ message: 'Invalid credentials' });
 
-    // Don't generate token yet, send OTP instead
-    const otp = generateOTP();
-    storeOTP(email, otp);
-    
-    // Send OTP via email
-    const emailResult = await sendOTP(email, otp);
-    if (!emailResult.success) {
-      return res.status(500).json({ message: 'Failed to send OTP email' });
-    }
-
-    // Return success response indicating OTP was sent
-    res.json({ message: 'OTP sent to your email', email: email });
+    // Generate token immediately after successful authentication
+    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ 
+      token, 
+      user: { id: user.id, name: user.name, email: user.email, role: user.role } 
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Request OTP endpoint
+// Request OTP endpoint - validates credentials and sends OTP
 exports.requestOTP = async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).json({ message: 'Email required' });
+  const { email, password } = req.body;
+  if (!email || !password) return res.status(400).json({ message: 'Email and password required' });
 
   try {
+    // Check if user exists
     const [rows] = await pool.query('SELECT * FROM users WHERE email = ?', [email]);
-    if (!rows.length) return res.status(400).json({ message: 'Email not found' });
+    if (!rows.length) return res.status(400).json({ message: 'Invalid credentials' });
 
+    const user = rows[0];
+    
+    // Verify password
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) return res.status(400).json({ message: 'Invalid credentials' });
+
+    // Generate and store OTP
     const otp = generateOTP();
     storeOTP(email, otp);
     
     // Send OTP via email
     const emailResult = await sendOTP(email, otp);
     if (!emailResult.success) {
-      return res.status(500).json({ message: 'Failed to send OTP email' });
+      return res.status(500).json({ message: 'Failed to send OTP email. Please try again.' });
     }
 
-    res.json({ message: 'OTP sent to your email' });
+    res.json({ message: 'OTP sent to your email', user: { id: user.id, name: user.name, email: user.email, role: user.role } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Server error' });

@@ -11,6 +11,7 @@ const resourceRoutes = require('./routes/resources');
 const usersRoutes = require('./routes/users');
 const reportsRoutes = require('./routes/reports');
 const wellnessRoutes = require('./routes/wellness');
+const feedbackRoutes = require('./routes/feedback');
 
 const app = express();
 app.use(cors());
@@ -24,6 +25,7 @@ app.use('/api/resources', resourceRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/wellness', wellnessRoutes);
+app.use('/api/feedback', feedbackRoutes);
 
 app.get('/', (req, res) => res.json({ message: 'eGuidance backend running' }));
 

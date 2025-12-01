@@ -1,6 +1,6 @@
 <template>
-  <div class="row" style="margin-top: 3rem;">
-    <div class="col-md-6 offset-md-3">
+  <div class="auth-container">
+    <div class="auth-form-wrapper">
       <AuthForm mode="register" />
     </div>
   </div>
@@ -11,5 +11,17 @@ import AuthForm from '../components/AuthForm.vue'
 </script>
 
 <style scoped>
-.row{margin-top:3rem}
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 50%, #f0fdf4 100%);
+  padding: 20px;
+}
+
+.auth-form-wrapper {
+  width: 100%;
+  max-width: 450px;
+}
 </style>
