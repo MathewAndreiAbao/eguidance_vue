@@ -18,7 +18,7 @@ import AuthForm from '../components/AuthForm.vue'
   min-height: 100vh;
 
   /* HD Background Image */
-  background-image: url('https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1920&q=80');
+  background-image: url('https://th.bing.com/th/id/R.eff3b2516e16a1f20fc7f65fadfacaa9?rik=7gg%2f2GevnoVAqg&riu=http%3a%2f%2fminsu.edu.ph%2fslider%2fslides_1.jpg&ehk=dCB6q4P5Y6o9POR8nIlz4EYkhl0CCcNXDgBQMk%2fkBdk%3d&risl=&pid=ImgRaw&r=0');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -26,7 +26,6 @@ import AuthForm from '../components/AuthForm.vue'
 
   /* Optional overlay para visible pa rin ang form */
   position: relative;
-  padding: 20px;
 }
 
 .auth-container::before {
