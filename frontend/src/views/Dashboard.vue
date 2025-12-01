@@ -158,11 +158,11 @@ function go(path) {
 .dashboard-header {
   margin-bottom: var(--eg-space-6);
   padding: var(--eg-space-6) var(--eg-space-8);
-  background: rgba(255, 255, 255, 0.9);
+  background: transparent;
   border-radius: 0;
-  box-shadow: var(--eg-shadow);
+  box-shadow: none;
   border-bottom: 1px solid rgba(229, 231, 235, 0.7);
-  backdrop-filter: blur(10px);
+  backdrop-filter: none;
 }
 
 .dashboard-title {
@@ -181,6 +181,9 @@ function go(path) {
   max-width: 700px;
   margin: 0 auto;
   line-height: 1.6;
+  background: transparent;
+  padding: var(--eg-space-4);
+  border-radius: var(--eg-radius-lg);
 }
 
 .cards-grid {
