@@ -12,5 +12,10 @@ router.get('/weekly/download/pdf', auth, requireRole('counselor'), reportsContro
 router.get('/monthly/download/csv', auth, requireRole('counselor'), reportsController.downloadMonthlyCSV);
 router.get('/monthly/download/pdf', auth, requireRole('counselor'), reportsController.downloadMonthlyPDF);
 
+// Analytics routes
+router.get('/analytics/summary', auth, requireRole('counselor'), reportsController.getAnalyticsSummary);
+router.get('/analytics/trends', auth, requireRole('counselor'), reportsController.getAppointmentTrends);
+router.get('/analytics/engagement', auth, requireRole('counselor'), reportsController.getStudentEngagement);
+
 module.exports = router;
 

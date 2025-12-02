@@ -31,7 +31,7 @@
 
         <!-- Give Feedback Tab (Student) -->
         <div v-if="activeTab === 'give-feedback' && user && user.role === 'student'" class="tab-content">
-          <h3>Give Feedback to a Counselor</h3>
+          <h3>{{ editingFeedbackId ? 'Edit Feedback' : 'Give Feedback to a Counselor' }}</h3>
           
           <form @submit.prevent="submitFeedback" class="modern-form">
             <div class="form-group">
@@ -78,7 +78,7 @@
                 class="btn btn-primary" 
                 :disabled="submittingFeedback"
               >
-                {{ submittingFeedback ? 'Submitting...' : 'Submit Feedback' }}
+                {{ submittingFeedback ? (editingFeedbackId ? 'Updating...' : 'Submitting...') : (editingFeedbackId ? 'Update Feedback' : 'Submit Feedback') }}
               </button>
             </div>
             
@@ -219,6 +219,7 @@ const activeTab = ref('give-feedback')
 const loading = ref(false)
 const submittingFeedback = ref(false)
 const feedbackError = ref(null)
+const editingFeedbackId = ref(null)
 
 // Pagination
 const currentStudentFeedbackPage = ref(1)
@@ -311,19 +312,33 @@ async function submitFeedback() {
   feedbackError.value = null
   
   try {
-    const response = await api.post('/feedback', {
-      counselor_id: newFeedback.counselor_id,
-      rating: newFeedback.rating,
-      comment: newFeedback.comment
-    })
+    let response;
+    
+    // If we're editing existing feedback, update it; otherwise create new
+    if (editingFeedbackId.value) {
+      response = await api.put(`/feedback/${editingFeedbackId.value}`, {
+        rating: newFeedback.rating,
+        comment: newFeedback.comment
+      })
+    } else {
+      response = await api.post('/feedback', {
+        counselor_id: newFeedback.counselor_id,
+        rating: newFeedback.rating,
+        comment: newFeedback.comment
+      })
+    }
+    
+    // Store the editing state for the success message
+    const wasEditing = editingFeedbackId.value;
     
     // Reset form
     newFeedback.counselor_id = ''
     newFeedback.rating = 0
     newFeedback.comment = ''
+    editingFeedbackId.value = null
     
     // Show success message
-    alert('Feedback submitted successfully!')
+    alert(wasEditing ? 'Feedback updated successfully!' : 'Feedback submitted successfully!')
     
     // Reload student feedback
     await loadStudentFeedback()
@@ -336,10 +351,11 @@ async function submitFeedback() {
 }
 
 async function editFeedback(feedback) {
-  // For simplicity, we'll just reset the form with the feedback data
+  // Set the form with the feedback data and store the feedback ID for updating
   newFeedback.counselor_id = feedback.counselor_id
   newFeedback.rating = feedback.rating
   newFeedback.comment = feedback.comment || ''
+  editingFeedbackId.value = feedback.id
   activeTab.value = 'give-feedback'
 }
 

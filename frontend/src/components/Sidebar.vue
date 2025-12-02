@@ -59,12 +59,7 @@ const menuItems = computed(() => [
     icon: 'fas fa-book',
     visible: true
   },
-  {
-    name: 'Career Guidance',
-    path: '/career-guidance',
-    icon: 'fas fa-briefcase',
-    visible: user.value?.role === 'counselor'
-  },
+
   {
     name: 'Feedback',
     path: '/feedback',

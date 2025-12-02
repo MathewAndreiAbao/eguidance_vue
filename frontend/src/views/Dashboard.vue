@@ -42,15 +42,7 @@
           </div>
         </div>
         
-        <div class="dashboard-card" v-if="user && user.role === 'counselor'" @click="go('/career-guidance')">
-          <div class="card-icon">
-            <i class="fas fa-briefcase"></i>
-          </div>
-          <div class="card-content">
-            <h3 class="card-title">Career Guidance</h3>
-            <p class="card-description">Explore career paths and guidance resources.</p>
-          </div>
-        </div>
+
         
         <div class="dashboard-card" @click="go('/wellness-forms')">
           <div class="card-icon">

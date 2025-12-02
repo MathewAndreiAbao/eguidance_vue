@@ -253,8 +253,12 @@
             </div>
             
             <div class="form-actions">
-              <button type="button" @click="closeFormModal" class="btn btn-secondary">Cancel</button>
-              <button type="submit" :disabled="submittingForm" class="btn btn-primary">
+              <button type="button" @click="closeFormModal" class="btn btn-secondary">Close</button>
+              <button 
+                v-if="user && user.role === 'student'"
+                type="submit" 
+                :disabled="submittingForm" 
+                class="btn btn-primary">
                 {{ submittingForm ? 'Submitting...' : 'Submit Form' }}
               </button>
             </div>
@@ -625,12 +629,22 @@ async function submitForm() {
 }
 
 function viewResponse(response) {
-  selectedResponse.value = response
+  // Parse responses if it's a string
+  const parsedResponse = {
+    ...response,
+    responses: typeof response.responses === 'string' ? JSON.parse(response.responses) : response.responses
+  }
+  selectedResponse.value = parsedResponse
   showResponseModal.value = true
 }
 
 function viewCounselorResponse(response) {
-  selectedResponse.value = response
+  // Parse responses if it's a string
+  const parsedResponse = {
+    ...response,
+    responses: typeof response.responses === 'string' ? JSON.parse(response.responses) : response.responses
+  }
+  selectedResponse.value = parsedResponse
   showResponseModal.value = true
 }
 

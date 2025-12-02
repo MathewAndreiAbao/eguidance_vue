@@ -1,179 +1,339 @@
 <template>
   <div class="reports-container">
-    <h2 class="page-title">Reports</h2>
+    <h2 class="page-title">Reports & Analytics</h2>
 
     <div class="card reports-card">
       <div class="card-body">
         <div class="view-selector">
-          <h5 class="card-title">Student Usage Statistics</h5>
+          <h5 class="card-title">Reports & Analytics</h5>
           <div class="btn-group">
             <button 
               type="button" 
               class="btn" 
-              :class="viewMode === 'weekly' ? 'btn-primary' : 'btn-outline-primary'"
-              @click="switchView('weekly')"
+              :class="activeTab === 'usage' ? 'btn-primary' : 'btn-outline-primary'"
+              @click="switchTab('usage')"
             >
-              Weekly
+              Usage Statistics
             </button>
             <button 
               type="button" 
               class="btn" 
-              :class="viewMode === 'monthly' ? 'btn-primary' : 'btn-outline-primary'"
-              @click="switchView('monthly')"
+              :class="activeTab === 'analytics' ? 'btn-primary' : 'btn-outline-primary'"
+              @click="switchTab('analytics')"
             >
-              Monthly
+              Analytics Overview
             </button>
           </div>
         </div>
 
-        <!-- Weekly View -->
-        <div v-if="viewMode === 'weekly'" class="report-view">
-          <div class="form-row">
-            <div class="form-group">
-              <label>Select Week Start Date</label>
-              <input 
-                type="date" 
-                v-model="weekStartDate" 
-                class="form-control" 
-                @change="loadWeeklyStats"
-              />
-            </div>
-            <div class="form-group">
-              <button class="btn btn-primary" @click="loadWeeklyStats">
-                <i class="bi bi-search"></i> Load Report
+        <!-- Usage Statistics Tab -->
+        <div v-if="activeTab === 'usage'">
+          <div class="view-selector-sub">
+            <div class="btn-group">
+              <button 
+                type="button" 
+                class="btn" 
+                :class="viewMode === 'weekly' ? 'btn-primary' : 'btn-outline-primary'"
+                @click="switchView('weekly')"
+              >
+                Weekly
+              </button>
+              <button 
+                type="button" 
+                class="btn" 
+                :class="viewMode === 'monthly' ? 'btn-primary' : 'btn-outline-primary'"
+                @click="switchView('monthly')"
+              >
+                Monthly
               </button>
             </div>
           </div>
 
-          <div v-if="weeklyStats && weeklyStats.period" class="report-info">
-            <div class="info-content">
-              <div class="info-text">
-                <strong>Period:</strong> {{ formatDate(weeklyStats.period.start) }} to {{ formatDate(weeklyStats.period.end) }} |
-                <strong>Total Students:</strong> {{ weeklyStats.total_students }}
+          <!-- Weekly View -->
+          <div v-if="viewMode === 'weekly'" class="report-view">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Select Week Start Date</label>
+                <input 
+                  type="date" 
+                  v-model="weekStartDate" 
+                  class="form-control" 
+                  @change="loadWeeklyStats"
+                />
               </div>
-              <div class="download-buttons">
-                <button class="btn btn-sm btn-primary" @click="downloadWeeklyCSV">
-                  <i class="bi bi-download"></i> Download CSV
-                </button>
-                <button class="btn btn-sm btn-primary" @click="downloadWeeklyPDF">
-                  <i class="bi bi-download"></i> Download PDF
+              <div class="form-group">
+                <button class="btn btn-primary" @click="loadWeeklyStats">
+                  <i class="bi bi-search"></i> Load Report
                 </button>
               </div>
             </div>
-          </div>
-        </div>
 
-        <!-- Monthly View -->
-        <div v-if="viewMode === 'monthly'" class="report-view">
-          <div class="form-row">
-            <div class="form-group">
-              <label>Select Year</label>
-              <select v-model="selectedYear" class="form-control" @change="loadMonthlyStats">
-                <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>Select Month</label>
-              <select v-model="selectedMonth" class="form-control" @change="loadMonthlyStats">
-                <option v-for="(month, idx) in months" :key="idx + 1" :value="idx + 1">
-                  {{ month }}
-                </option>
-              </select>
-            </div>
-            <div class="form-group">
-              <button class="btn btn-primary" @click="loadMonthlyStats">
-                <i class="bi bi-search"></i> Load Report
-              </button>
-            </div>
-          </div>
-
-          <div v-if="monthlyStats && monthlyStats.period" class="report-info">
-            <div class="info-content">
-              <div class="info-text">
-                <strong>Period:</strong> {{ months[monthlyStats.period.month - 1] }} {{ monthlyStats.period.year }} |
-                <strong>Total Students:</strong> {{ monthlyStats.total_students }}
-              </div>
-              <div class="download-buttons">
-                <button class="btn btn-sm btn-primary" @click="downloadMonthlyCSV">
-                  <i class="bi bi-download"></i> Download CSV
-                </button>
-                <button class="btn btn-sm btn-primary" @click="downloadMonthlyPDF">
-                  <i class="bi bi-download"></i> Download PDF
-                </button>
+            <div v-if="weeklyStats && weeklyStats.period" class="report-info">
+              <div class="info-content">
+                <div class="info-text">
+                  <strong>Period:</strong> {{ formatDate(weeklyStats.period.start) }} to {{ formatDate(weeklyStats.period.end) }} |
+                  <strong>Total Students:</strong> {{ weeklyStats.total_students }}
+                </div>
+                <div class="download-buttons">
+                  <button class="btn btn-sm btn-primary" @click="downloadWeeklyCSV">
+                    <i class="bi bi-download"></i> Download CSV
+                  </button>
+                  <button class="btn btn-sm btn-primary" @click="downloadWeeklyPDF">
+                    <i class="bi bi-download"></i> Download PDF
+                  </button>
+                </div>
               </div>
             </div>
           </div>
+
+          <!-- Monthly View -->
+          <div v-if="viewMode === 'monthly'" class="report-view">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Select Year</label>
+                <select v-model="selectedYear" class="form-control" @change="loadMonthlyStats">
+                  <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Select Month</label>
+                <select v-model="selectedMonth" class="form-control" @change="loadMonthlyStats">
+                  <option v-for="(month, idx) in months" :key="idx + 1" :value="idx + 1">
+                    {{ month }}
+                  </option>
+                </select>
+              </div>
+              <div class="form-group">
+                <button class="btn btn-primary" @click="loadMonthlyStats">
+                  <i class="bi bi-search"></i> Load Report
+                </button>
+              </div>
+            </div>
+
+            <div v-if="monthlyStats && monthlyStats.period" class="report-info">
+              <div class="info-content">
+                <div class="info-text">
+                  <strong>Period:</strong> {{ months[monthlyStats.period.month - 1] }} {{ monthlyStats.period.year }} |
+                  <strong>Total Students:</strong> {{ monthlyStats.total_students }}
+                </div>
+                <div class="download-buttons">
+                  <button class="btn btn-sm btn-primary" @click="downloadMonthlyCSV">
+                    <i class="bi bi-download"></i> Download CSV
+                  </button>
+                  <button class="btn btn-sm btn-primary" @click="downloadMonthlyPDF">
+                    <i class="bi bi-download"></i> Download PDF
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Loading -->
+          <div v-if="loading" class="loading-container">
+            <div class="spinner"></div>
+            <p>Loading report data...</p>
+          </div>
+
+          <!-- Statistics Table -->
+          <div v-else-if="(viewMode === 'weekly' && weeklyStats?.students) || (viewMode === 'monthly' && monthlyStats?.students)">
+            <div class="table-responsive">
+              <table class="reports-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Student Name</th>
+                    <th>Email</th>
+                    <th>Total Appointments</th>
+                    <th>Approved</th>
+                    <th>Successful</th>
+                    <th>First Appointment</th>
+                    <th>Last Appointment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr 
+                    v-for="(student, index) in paginatedStudents" 
+                    :key="student.id"
+                  >
+                    <td>{{ startIndex + index + 1 }}</td>
+                    <td>{{ student.name }}</td>
+                    <td>{{ student.email }}</td>
+                    <td>
+                      <span class="badge badge-primary">{{ student.appointment_count }}</span>
+                    </td>
+                    <td>
+                      <span class="badge badge-info">{{ student.approved_count || 0 }}</span>
+                    </td>
+                    <td>
+                      <span class="badge badge-success">{{ student.successful_count || 0 }}</span>
+                    </td>
+                    <td>
+                      {{ student.first_appointment ? formatDate(student.first_appointment) : '-' }}
+                    </td>
+                    <td>
+                      {{ student.last_appointment ? formatDate(student.last_appointment) : '-' }}
+                    </td>
+                  </tr>
+                  <tr v-if="paginatedStudents.length === 0">
+                    <td :colspan="8" class="no-data">
+                      No students found for the selected period.
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            
+            <!-- Pagination -->
+            <Pagination 
+              v-if="(currentStats?.students?.length || 0) > studentsPerPage"
+              :current-page="currentPage"
+              :total-pages="totalPages"
+              :total-items="currentStats?.students?.length || 0"
+              :items-per-page="studentsPerPage"
+              @update:current-page="currentPage = $event"
+            />
+          </div>
+
+          <!-- Empty State -->
+          <div v-else class="no-report">
+            <p>Select a period and click "Load Report" to view statistics.</p>
+          </div>
         </div>
 
-        <!-- Loading -->
-        <div v-if="loading" class="loading-container">
-          <div class="spinner"></div>
-          <p>Loading report data...</p>
-        </div>
+        <!-- Analytics Tab -->
+        <div v-if="activeTab === 'analytics'" class="analytics-view">
+          <!-- Analytics Summary Cards -->
+          <div v-if="analyticsSummary" class="summary-cards">
+            <div class="summary-card">
+              <div class="card-icon">
+                <i class="fas fa-calendar-check"></i>
+              </div>
+              <div class="card-info">
+                <h3>{{ analyticsSummary.totalAppointments }}</h3>
+                <p>Total Appointments</p>
+              </div>
+            </div>
+            
+            <div class="summary-card">
+              <div class="card-icon">
+                <i class="fas fa-users"></i>
+              </div>
+              <div class="card-info">
+                <h3>{{ analyticsSummary.totalStudents }}</h3>
+                <p>Active Students</p>
+              </div>
+            </div>
+            
+            <div class="summary-card">
+              <div class="card-icon">
+                <i class="fas fa-star"></i>
+              </div>
+              <div class="card-info">
+                <h3>{{ analyticsSummary.averageFeedbackRating }}</h3>
+                <p>Avg Feedback Rating</p>
+              </div>
+            </div>
+            
+            <div class="summary-card">
+              <div class="card-icon">
+                <i class="fas fa-file-alt"></i>
+              </div>
+              <div class="card-info">
+                <h3>{{ analyticsSummary.totalWellnessForms }}</h3>
+                <p>Wellness Forms</p>
+              </div>
+            </div>
+          </div>
 
-        <!-- Statistics Table -->
-        <div v-else-if="(viewMode === 'weekly' && weeklyStats?.students) || (viewMode === 'monthly' && monthlyStats?.students)">
-          <div class="table-responsive">
-            <table class="reports-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Student Name</th>
-                  <th>Email</th>
-                  <th>Total Appointments</th>
-                  <th>Approved</th>
-                  <th>Successful</th>
-                  <th v-if="viewMode === 'monthly'">First Appointment</th>
-                  <th v-if="viewMode === 'monthly'">Last Appointment</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr 
-                  v-for="(student, index) in paginatedStudents" 
-                  :key="student.id"
+          <!-- Loading Analytics -->
+          <div v-if="loadingAnalytics" class="loading-container">
+            <div class="spinner"></div>
+            <p>Loading analytics data...</p>
+          </div>
+
+          <!-- Analytics Content -->
+          <div v-else class="analytics-content">
+            <!-- Appointment Trends Chart -->
+            <div class="chart-section">
+              <h5>Appointment Trends</h5>
+              <div class="chart-container">
+                <canvas ref="trendsChart"></canvas>
+              </div>
+              <div class="chart-controls">
+                <button 
+                  class="btn btn-sm"
+                  :class="trendsPeriod === 'monthly' ? 'btn-primary' : 'btn-outline-primary'"
+                  @click="loadTrends('monthly')"
                 >
-                  <td>{{ startIndex + index + 1 }}</td>
-                  <td>{{ student.name }}</td>
-                  <td>{{ student.email }}</td>
-                  <td>
-                    <span class="badge badge-primary">{{ student.appointment_count }}</span>
-                  </td>
-                  <td>
-                    <span class="badge badge-info">{{ student.approved_count || 0 }}</span>
-                  </td>
-                  <td>
-                    <span class="badge badge-success">{{ student.successful_count || 0 }}</span>
-                  </td>
-                  <td v-if="viewMode === 'monthly'">
-                    {{ student.first_appointment ? formatDate(student.first_appointment) : '-' }}
-                  </td>
-                  <td v-if="viewMode === 'monthly'">
-                    {{ student.last_appointment ? formatDate(student.last_appointment) : '-' }}
-                  </td>
-                </tr>
-                <tr v-if="paginatedStudents.length === 0">
-                  <td :colspan="viewMode === 'monthly' ? 8 : 6" class="no-data">
-                    No students found for the selected period.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          
-          <!-- Pagination -->
-          <Pagination 
-            v-if="(currentStats?.students?.length || 0) > studentsPerPage"
-            :current-page="currentPage"
-            :total-pages="totalPages"
-            :total-items="currentStats?.students?.length || 0"
-            :items-per-page="studentsPerPage"
-            @update:current-page="currentPage = $event"
-          />
-        </div>
+                  Monthly
+                </button>
+                <button 
+                  class="btn btn-sm"
+                  :class="trendsPeriod === 'weekly' ? 'btn-primary' : 'btn-outline-primary'"
+                  @click="loadTrends('weekly')"
+                >
+                  Weekly
+                </button>
+                <button 
+                  class="btn btn-sm"
+                  :class="trendsPeriod === 'daily' ? 'btn-primary' : 'btn-outline-primary'"
+                  @click="loadTrends('daily')"
+                >
+                  Daily
+                </button>
+              </div>
+            </div>
 
-        <!-- Empty State -->
-        <div v-else class="no-report">
-          <p>Select a period and click "Load Report" to view statistics.</p>
+            <!-- Student Engagement Table -->
+            <div class="engagement-section">
+              <h5>Top Engaged Students</h5>
+              <div class="table-responsive">
+                <table class="reports-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Student Name</th>
+                      <th>Email</th>
+                      <th>Appointments</th>
+                      <th>Feedback</th>
+                      <th>Wellness Responses</th>
+                      <th>Avg Rating</th>
+                      <th>Last Activity</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(student, index) in studentEngagement" :key="student.id">
+                      <td>{{ index + 1 }}</td>
+                      <td>{{ student.name }}</td>
+                      <td>{{ student.email }}</td>
+                      <td>
+                        <span class="badge badge-primary">{{ student.total_appointments }}</span>
+                      </td>
+                      <td>
+                        <span class="badge badge-info">{{ student.total_feedback }}</span>
+                      </td>
+                      <td>
+                        <span class="badge badge-success">{{ student.total_wellness_responses }}</span>
+                      </td>
+                      <td>
+                        <span class="badge" :class="getRatingClass(student.avg_feedback_rating)">
+                          {{ student.avg_feedback_rating ? parseFloat(student.avg_feedback_rating).toFixed(1) : '-' }}
+                        </span>
+                      </td>
+                      <td>
+                        {{ student.last_appointment_date ? formatDate(student.last_appointment_date) : '-' }}
+                      </td>
+                    </tr>
+                    <tr v-if="!studentEngagement || studentEngagement.length === 0">
+                      <td colspan="8" class="no-data">
+                        No engagement data available.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -181,10 +341,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import api from '../utils/api'
 import axios from 'axios'
 import Pagination from '../components/Pagination.vue'
+import { Chart, registerables } from 'chart.js'
+Chart.register(...registerables)
 
 // Create axios instance for blob downloads with auth
 const downloadApi = axios.create({
@@ -198,13 +360,23 @@ downloadApi.interceptors.request.use((config) => {
   return config
 })
 
+const activeTab = ref('usage')
 const viewMode = ref('weekly')
 const loading = ref(false)
+const loadingAnalytics = ref(false)
 const weeklyStats = ref(null)
 const monthlyStats = ref(null)
 const weekStartDate = ref('')
 const selectedYear = ref(new Date().getFullYear())
 const selectedMonth = ref(new Date().getMonth() + 1)
+
+// Analytics data
+const analyticsSummary = ref(null)
+const appointmentTrends = ref([])
+const studentEngagement = ref([])
+const trendsPeriod = ref('monthly')
+const trendsChart = ref(null)
+let chartInstance = null
 
 // Pagination
 const currentPage = ref(1)
@@ -252,20 +424,30 @@ function formatDate(dateString) {
   return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
+function getRatingClass(rating) {
+  if (!rating) return 'badge-secondary'
+  const numRating = parseFloat(rating)
+  if (numRating >= 4) return 'badge-success'
+  if (numRating >= 3) return 'badge-warning'
+  return 'badge-danger'
+}
+
 async function loadWeeklyStats() {
-  if (!weekStartDate.value) {
+  let startDateToSend = weekStartDate.value;
+  
+  if (!startDateToSend) {
     // Default to current week if no date selected
     const today = new Date()
     const day = today.getDay()
     const diff = today.getDate() - day + (day === 0 ? -6 : 1)
     const monday = new Date(today.setDate(diff))
-    weekStartDate.value = monday.toISOString().split('T')[0]
+    startDateToSend = monday.toISOString().split('T')[0]
   }
 
   loading.value = true
   try {
     const res = await api.get('/reports/weekly', {
-      params: { startDate: weekStartDate.value }
+      params: { startDate: startDateToSend }
     })
     weeklyStats.value = res.data
     // Reset pagination when loading new data
@@ -297,11 +479,133 @@ async function loadMonthlyStats() {
 
 function switchView(mode) {
   viewMode.value = mode
-  if (mode === 'weekly' && weekStartDate.value) {
+  if (mode === 'weekly') {
     loadWeeklyStats()
   } else if (mode === 'monthly' && selectedYear.value && selectedMonth.value) {
     loadMonthlyStats()
   }
+}
+
+function switchTab(tab) {
+  activeTab.value = tab
+  if (tab === 'analytics' && (!analyticsSummary.value || analyticsSummary.value === null)) {
+    loadAnalyticsData()
+  }
+}
+
+async function loadAnalyticsData() {
+  loadingAnalytics.value = true
+  try {
+    // Load all analytics data in parallel
+    const [summaryRes, trendsRes, engagementRes] = await Promise.all([
+      api.get('/reports/analytics/summary'),
+      api.get('/reports/analytics/trends', { params: { period: trendsPeriod.value } }),
+      api.get('/reports/analytics/engagement')
+    ])
+    
+    analyticsSummary.value = summaryRes.data
+    appointmentTrends.value = trendsRes.data
+    studentEngagement.value = engagementRes.data
+    
+    // Render chart after next tick to ensure DOM is updated
+    await nextTick()
+    renderTrendsChart()
+  } catch (err) {
+    console.error(err)
+    alert(err.response?.data?.message || 'Error loading analytics data')
+  } finally {
+    loadingAnalytics.value = false
+  }
+}
+
+async function loadTrends(period) {
+  trendsPeriod.value = period
+  try {
+    const res = await api.get('/reports/analytics/trends', { 
+      params: { period: period } 
+    })
+    appointmentTrends.value = res.data
+    await nextTick()
+    renderTrendsChart()
+  } catch (err) {
+    console.error(err)
+    alert(err.response?.data?.message || 'Error loading trends data')
+  }
+}
+
+function renderTrendsChart() {
+  if (!trendsChart.value) return
+  
+  // Destroy existing chart if it exists
+  if (chartInstance) {
+    chartInstance.destroy()
+  }
+  
+  // Prepare data for chart
+  const labels = appointmentTrends.value.map(item => item.period)
+  const totalAppointments = appointmentTrends.value.map(item => item.total_appointments)
+  const successfulAppointments = appointmentTrends.value.map(item => item.successful_appointments)
+  const cancelledAppointments = appointmentTrends.value.map(item => item.cancelled_appointments)
+  const avgRatings = appointmentTrends.value.map(item => item.avg_feedback_rating)
+  
+  // Create chart
+  chartInstance = new Chart(trendsChart.value, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Total Appointments',
+          data: totalAppointments,
+          borderColor: '#8FBC8F',
+          backgroundColor: 'rgba(143, 188, 143, 0.1)',
+          tension: 0.3,
+          fill: true
+        },
+        {
+          label: 'Successful Appointments',
+          data: successfulAppointments,
+          borderColor: '#90EE90',
+          backgroundColor: 'rgba(144, 238, 144, 0.1)',
+          tension: 0.3,
+          fill: true
+        },
+        {
+          label: 'Cancelled Appointments',
+          data: cancelledAppointments,
+          borderColor: '#FF6B6B',
+          backgroundColor: 'rgba(255, 107, 107, 0.1)',
+          tension: 0.3,
+          fill: true
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+        },
+        title: {
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: 'rgba(0, 0, 0, 0.05)'
+          }
+        },
+        x: {
+          grid: {
+            color: 'rgba(0, 0, 0, 0.05)'
+          }
+        }
+      }
+    }
+  })
 }
 
 async function downloadWeeklyCSV() {
@@ -411,6 +715,14 @@ onMounted(() => {
   const diff = today.getDate() - day + (day === 0 ? -6 : 1)
   const monday = new Date(today.setDate(diff))
   weekStartDate.value = monday.toISOString().split('T')[0]
+  
+  // Load initial weekly stats
+  loadWeeklyStats()
+  
+  // Load initial analytics data if needed
+  if (activeTab.value === 'analytics') {
+    loadAnalyticsData()
+  }
 })
 </script>
 
@@ -447,6 +759,10 @@ onMounted(() => {
   margin-bottom: 30px;
   padding-bottom: 20px;
   border-bottom: 1px solid #E5E7EB;
+}
+
+.view-selector-sub {
+  margin-bottom: 20px;
 }
 
 .card-title {
@@ -649,6 +965,21 @@ onMounted(() => {
   color: #374151;
 }
 
+.badge-warning {
+  background-color: #FFD700;
+  color: #374151;
+}
+
+.badge-danger {
+  background-color: #FF6B6B;
+  color: white;
+}
+
+.badge-secondary {
+  background-color: #D3D3D3;
+  color: #374151;
+}
+
 .no-data {
   text-align: center;
   color: #6B7280;
@@ -659,6 +990,91 @@ onMounted(() => {
   text-align: center;
   padding: 50px 20px;
   color: #6B7280;
+}
+
+/* Analytics Styles */
+.analytics-view {
+  margin-top: 20px;
+}
+
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.summary-card {
+  background: linear-gradient(135deg, #8FBC8F 0%, #7AAE7A 100%);
+  border-radius: 12px;
+  padding: 20px;
+  color: white;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(143, 188, 143, 0.2);
+}
+
+.card-icon {
+  font-size: 2rem;
+  margin-right: 15px;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+}
+
+.card-info h3 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 5px 0;
+}
+
+.card-info p {
+  font-size: 0.9rem;
+  margin: 0;
+  opacity: 0.9;
+}
+
+.chart-section {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(143, 188, 143, 0.1);
+  margin-bottom: 30px;
+}
+
+.chart-section h5 {
+  color: #8FBC8F;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+.chart-container {
+  height: 300px;
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.chart-controls {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.engagement-section {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(143, 188, 143, 0.1);
+}
+
+.engagement-section h5 {
+  color: #8FBC8F;
+  margin-bottom: 20px;
+  font-weight: 600;
 }
 
 @media (max-width: 768px) {
@@ -687,6 +1103,18 @@ onMounted(() => {
   .reports-table th,
   .reports-table td {
     padding: 10px 15px;
+  }
+  
+  .summary-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .summary-card {
+    flex-direction: row;
+  }
+  
+  .chart-controls {
+    flex-wrap: wrap;
   }
 }
 </style>

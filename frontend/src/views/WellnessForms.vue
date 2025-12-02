@@ -106,7 +106,6 @@
               v-for="response in paginatedStudentResponses" 
               :key="response.id" 
               class="response-card"
-              @click="viewResponse(response)"
             >
               <div class="response-header">
                 <h3 class="response-title">{{ response.form_title }}</h3>
@@ -115,6 +114,14 @@
               <div class="response-meta">
                 <span class="response-date">{{ formatDate(response.submitted_at) }}</span>
                 <span class="response-type">{{ formatFormType(response.form_type) }}</span>
+              </div>
+              <div class="response-actions">
+                <button class="btn btn-sm btn-outline-primary" @click="viewResponse(response)">
+                  View
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" @click="editResponse(response)">
+                  Edit
+                </button>
               </div>
             </div>
           </div>
@@ -196,15 +203,75 @@
               ></textarea>
             </div>
             
+            <!-- Dynamic Questions Section -->
             <div class="form-group">
-              <label for="form_type">Form Type</label>
-              <select id="form_type" v-model="newForm.form_type" class="form-control" required>
-                <option value="">Select form type</option>
-                <option value="anxiety">Anxiety Assessment</option>
-                <option value="depression">Depression Assessment</option>
-                <option value="stress">Stress Assessment</option>
-                <option value="general_wellness">General Wellness</option>
-              </select>
+              <label>Questions</label>
+              <div class="questions-container">
+                <div 
+                  v-for="(question, index) in newForm.questions" 
+                  :key="index" 
+                  class="question-item"
+                >
+                  <div class="question-header">
+                    <span>Question {{ index + 1 }}</span>
+                    <button 
+                      type="button" 
+                      class="btn btn-sm btn-danger" 
+                      @click="removeQuestion(index)"
+                      v-if="newForm.questions.length > 1"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <div class="question-content">
+                    <textarea 
+                      v-model="question.question_text" 
+                      class="form-control" 
+                      rows="2"
+                      placeholder="Enter your question"
+                      required
+                    ></textarea>
+                    <div class="question-type">
+                      <label>Answer Type:</label>
+                      <select v-model="question.question_type" class="form-control" @change="onQuestionTypeChange(question)">
+                        <option value="text">Open Text</option>
+                        <option value="rating">Numeric Rating (1-10)</option>
+                        <option value="multiple_choice">Multiple Choice</option>
+                        <option value="yes_no">Yes/No</option>
+                        <option value="scale_1_5">Scale (1-5)</option>
+                      </select>
+                    </div>
+                    <!-- Options for multiple choice questions -->
+                    <div v-if="question.question_type === 'multiple_choice'" class="options-section">
+                      <label>Options:</label>
+                      <div class="options-container">
+                        <div v-for="(option, optIndex) in question.options" :key="optIndex" class="option-item">
+                          <input 
+                            type="text" 
+                            v-model="question.options[optIndex]" 
+                            class="form-control option-input" 
+                            placeholder="Option text"
+                          >
+                          <button 
+                            type="button" 
+                            class="btn btn-sm btn-danger" 
+                            @click="removeOption(question, optIndex)"
+                            v-if="question.options.length > 2"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <button type="button" class="btn btn-secondary" @click="addOption(question)">
+                          Add Option
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-secondary" @click="addQuestion">
+                  Add Question
+                </button>
+              </div>
             </div>
             
             <div class="form-actions">
@@ -226,37 +293,75 @@
     <div v-if="showFormModal" class="modal-overlay" @click="closeFormModal">
       <div class="modal-content" @click.stop>
         <div class="modal-header">
-          <h3>{{ selectedForm.title }}</h3>
+          <h3>{{ editingResponseId ? 'Edit Response: ' + selectedForm.title : selectedForm.title }}</h3>
           <button @click="closeFormModal" class="close-button">&times;</button>
         </div>
         <div class="modal-body">
           <p class="form-description-modal">{{ selectedForm.description }}</p>
           
           <form @submit.prevent="submitForm" class="wellness-form modern-form">
-            <div class="question-section" v-for="(question, index) in getFormQuestions(selectedForm.form_type)" :key="index">
-              <h4>{{ question.text }}</h4>
-              <div class="options">
-                <label 
-                  v-for="option in question.options" 
-                  :key="option.value" 
-                  class="option-label"
-                >
-                  <input 
-                    type="radio" 
-                    :name="'question-' + index" 
-                    :value="option.value" 
-                    v-model="formResponses[index]"
-                    required
-                  >
-                  <span>{{ option.label }}</span>
-                </label>
+            <div class="question-section" v-for="(question, index) in selectedForm.questions" :key="question.id">
+              <h4>{{ question.question_text }}</h4>
+              <div class="question-input">
+                <textarea 
+                  v-if="question.question_type === 'text'"
+                  v-model="formResponses[index]" 
+                  class="form-control" 
+                  rows="3"
+                  :placeholder="'Enter your response...'"></textarea>
+                <input 
+                  v-else-if="question.question_type === 'rating'"
+                  type="number" 
+                  v-model.number="formResponses[index]" 
+                  class="form-control" 
+                  min="1" 
+                  max="10"
+                  :placeholder="'Enter a number between 1-10...'">
+                <select 
+                  v-else-if="question.question_type === 'multiple_choice'"
+                  v-model="formResponses[index]" 
+                  class="form-control">
+                  <option value="">Select an option</option>
+                  <option 
+                    v-for="(option, optIndex) in question.options" 
+                    :key="optIndex" 
+                    :value="option">
+                    {{ option }}
+                  </option>
+                </select>
+                <select 
+                  v-else-if="question.question_type === 'yes_no'"
+                  v-model="formResponses[index]" 
+                  class="form-control">
+                  <option value="">Select Yes or No</option>
+                  <option value="Yes">Yes</option>
+                  <option value="No">No</option>
+                </select>
+                <select 
+                  v-else-if="question.question_type === 'scale_1_5'"
+                  v-model="formResponses[index]" 
+                  class="form-control">
+                  <option value="">Select a rating</option>
+                  <option value="1">1 - Very Low</option>
+                  <option value="2">2 - Low</option>
+                  <option value="3">3 - Neutral</option>
+                  <option value="4">4 - High</option>
+                  <option value="5">5 - Very High</option>
+                </select>
+                <div v-else>
+                  <p>Unsupported question type: {{ question.question_type }}</p>
+                </div>
               </div>
             </div>
             
             <div class="form-actions">
-              <button type="button" @click="closeFormModal" class="btn btn-secondary">Cancel</button>
-              <button type="submit" :disabled="submittingForm" class="btn btn-primary">
-                {{ submittingForm ? 'Submitting...' : 'Submit Form' }}
+              <button type="button" @click="closeFormModal" class="btn btn-secondary">Close</button>
+              <button 
+                v-if="user && user.role === 'student'"
+                type="submit" 
+                :disabled="submittingForm" 
+                class="btn btn-primary">
+                {{ submittingForm ? (editingResponseId ? 'Updating...' : 'Submitting...') : (editingResponseId ? 'Update Response' : 'Submit Form') }}
               </button>
             </div>
             
@@ -283,15 +388,18 @@
               <p v-if="selectedResponse.score !== null"><strong>Score:</strong> {{ selectedResponse.score }}</p>
             </div>
             
-            <div class="response-answers" v-if="selectedResponse.responses">
+            <div class="response-answers" v-if="selectedResponse.responses && selectedResponse.form_questions">
               <h4>Answers:</h4>
               <div 
                 class="answer-item" 
-                v-for="(answer, index) in getFormQuestions(selectedResponse.form_type)" 
+                v-for="(question, index) in selectedResponse.form_questions" 
                 :key="index"
               >
-                <p><strong>{{ answer.text }}</strong></p>
-                <p>{{ getAnswerLabel(selectedResponse.form_type, index, selectedResponse.responses[index]) }}</p>
+                <p><strong>{{ question.question_text }}</strong></p>
+                <div class="selected-answer">
+                  <span class="answer-label">Response:</span>
+                  <span class="answer-value">{{ getResponseValue(question.question_type, selectedResponse.responses[index]) }}</span>
+                </div>
               </div>
             </div>
             
@@ -345,6 +453,7 @@ const submittingForm = ref(false)
 const error = ref(null)
 const createFormError = ref(null)
 const submitFormError = ref(null)
+const editingResponseId = ref(null)
 
 // Pagination
 const currentFormPage = ref(1)
@@ -362,7 +471,13 @@ const counselorResponses = ref([])
 const newForm = reactive({
   title: '',
   description: '',
-  form_type: ''
+  questions: [
+    {
+      question_text: '',
+      question_type: 'text',
+      options: []
+    }
+  ]
 })
 
 // Form interaction
@@ -436,143 +551,38 @@ function getFormIcon(type) {
   return iconMap[type] || 'fas fa-file-alt'
 }
 
-function getFormQuestions(formType) {
-  // Sample questions for different form types
-  const questions = {
-    'anxiety': [
-      {
-        text: 'Feeling nervous, anxious, or on edge',
-        options: [
-          { value: 0, label: 'Not at all' },
-          { value: 1, label: 'Several days' },
-          { value: 2, label: 'More than half the days' },
-          { value: 3, label: 'Nearly every day' }
-        ]
-      },
-      {
-        text: 'Not being able to stop or control worrying',
-        options: [
-          { value: 0, label: 'Not at all' },
-          { value: 1, label: 'Several days' },
-          { value: 2, label: 'More than half the days' },
-          { value: 3, label: 'Nearly every day' }
-        ]
-      },
-      {
-        text: 'Worrying too much about different things',
-        options: [
-          { value: 0, label: 'Not at all' },
-          { value: 1, label: 'Several days' },
-          { value: 2, label: 'More than half the days' },
-          { value: 3, label: 'Nearly every day' }
-        ]
-      }
-    ],
-    'depression': [
-      {
-        text: 'Little interest or pleasure in doing things',
-        options: [
-          { value: 0, label: 'Not at all' },
-          { value: 1, label: 'Several days' },
-          { value: 2, label: 'More than half the days' },
-          { value: 3, label: 'Nearly every day' }
-        ]
-      },
-      {
-        text: 'Feeling down, depressed, or hopeless',
-        options: [
-          { value: 0, label: 'Not at all' },
-          { value: 1, label: 'Several days' },
-          { value: 2, label: 'More than half the days' },
-          { value: 3, label: 'Nearly every day' }
-        ]
-      },
-      {
-        text: 'Trouble falling or staying asleep, or sleeping too much',
-        options: [
-          { value: 0, label: 'Not at all' },
-          { value: 1, label: 'Several days' },
-          { value: 2, label: 'More than half the days' },
-          { value: 3, label: 'Nearly every day' }
-        ]
-      }
-    ],
-    'stress': [
-      {
-        text: 'In the last month, how often have you felt upset because of something that happened unexpectedly?',
-        options: [
-          { value: 0, label: 'Never' },
-          { value: 1, label: 'Almost never' },
-          { value: 2, label: 'Sometimes' },
-          { value: 3, label: 'Fairly often' },
-          { value: 4, label: 'Very often' }
-        ]
-      },
-      {
-        text: 'In the last month, how often have you felt that you were unable to control the important things in your life?',
-        options: [
-          { value: 0, label: 'Never' },
-          { value: 1, label: 'Almost never' },
-          { value: 2, label: 'Sometimes' },
-          { value: 3, label: 'Fairly often' },
-          { value: 4, label: 'Very often' }
-        ]
-      },
-      {
-        text: 'In the last month, how often have you felt confident about your ability to handle your personal problems?',
-        options: [
-          { value: 4, label: 'Very often' },
-          { value: 3, label: 'Fairly often' },
-          { value: 2, label: 'Sometimes' },
-          { value: 1, label: 'Almost never' },
-          { value: 0, label: 'Never' }
-        ]
-      }
-    ],
-    'general_wellness': [
-      {
-        text: 'Overall, how would you rate your physical health?',
-        options: [
-          { value: 1, label: 'Poor' },
-          { value: 2, label: 'Fair' },
-          { value: 3, label: 'Good' },
-          { value: 4, label: 'Very good' },
-          { value: 5, label: 'Excellent' }
-        ]
-      },
-      {
-        text: 'How satisfied are you with your life?',
-        options: [
-          { value: 1, label: 'Very dissatisfied' },
-          { value: 2, label: 'Dissatisfied' },
-          { value: 3, label: 'Neutral' },
-          { value: 4, label: 'Satisfied' },
-          { value: 5, label: 'Very satisfied' }
-        ]
-      },
-      {
-        text: 'How often do you engage in physical activity?',
-        options: [
-          { value: 1, label: 'Never' },
-          { value: 2, label: 'Rarely' },
-          { value: 3, label: 'Sometimes' },
-          { value: 4, label: 'Often' },
-          { value: 5, label: 'Very often' }
-        ]
-      }
-    ]
+
+
+
+
+// Get response value for display
+function getResponseValue(questionType, responseValue) {
+  if (responseValue === null || responseValue === undefined || responseValue === '') {
+    return 'No response';
   }
   
-  return questions[formType] || []
-}
-
-function getAnswerLabel(formType, questionIndex, answerValue) {
-  const questions = getFormQuestions(formType)
-  if (questions[questionIndex] && questions[questionIndex].options) {
-    const option = questions[questionIndex].options.find(opt => opt.value == answerValue)
-    return option ? option.label : answerValue
+  // Handle different question types for display
+  switch (questionType) {
+    case 'yes_no':
+      return responseValue === 'Yes' ? 'Yes ✅' : 'No ❌';
+    case 'scale_1_5':
+      const scaleLabels = {
+        '1': '1 - Very Low',
+        '2': '2 - Low',
+        '3': '3 - Neutral',
+        '4': '4 - High',
+        '5': '5 - Very High'
+      };
+      return scaleLabels[responseValue] || responseValue;
+    case 'rating':
+      return `${responseValue}/10`;
+    case 'multiple_choice':
+      return responseValue;
+    case 'text':
+      return responseValue;
+    default:
+      return responseValue;
   }
-  return answerValue
 }
 
 async function loadForms() {
@@ -609,13 +619,36 @@ async function loadCounselorResponses() {
 }
 
 function openForm(form) {
-  selectedForm.value = form
-  formResponses.value = []
-  showFormModal.value = true
-  
-  // Initialize responses array with null values
-  const questions = getFormQuestions(form.form_type)
-  formResponses.value = Array(questions.length).fill(null)
+  // Fetch the full form details to get the questions
+  api.get(`/wellness/${form.id}`)
+    .then(formResponse => {
+      const detailedForm = formResponse.data;
+      
+      // Ensure options are properly set for multiple choice questions
+      if (detailedForm.questions) {
+        detailedForm.questions.forEach(question => {
+          if (question.question_type === 'multiple_choice' && !question.options && question.question_options) {
+            // Parse options from question_options if needed
+            try {
+              question.options = JSON.parse(question.question_options);
+            } catch (e) {
+              question.options = [];
+            }
+          }
+        });
+      }
+      
+      selectedForm.value = detailedForm;
+      formResponses.value = [];
+      showFormModal.value = true;
+      
+      // Initialize responses array with null values
+      formResponses.value = Array(detailedForm.questions.length).fill(null);
+    })
+    .catch(err => {
+      console.error('Error fetching form:', err);
+      alert('Failed to load form details');
+    });
 }
 
 function closeFormModal() {
@@ -623,11 +656,40 @@ function closeFormModal() {
   selectedForm.value = {}
   formResponses.value = []
   submitFormError.value = null
+  editingResponseId.value = null
 }
 
 async function submitForm() {
   submittingForm.value = true
   submitFormError.value = null
+  
+  // Validate that all required questions have responses
+  let hasMissingResponse = false;
+  for (let i = 0; i < selectedForm.value.questions.length; i++) {
+    const question = selectedForm.value.questions[i];
+    const response = formResponses.value[i];
+    
+    // Check if response is missing
+    if (response === null || response === undefined || response === '') {
+      hasMissingResponse = true;
+      break;
+    }
+    
+    // For select inputs, also check if it's the default empty value
+    if ((question.question_type === 'multiple_choice' || 
+         question.question_type === 'yes_no' || 
+         question.question_type === 'scale_1_5') && 
+        response === '') {
+      hasMissingResponse = true;
+      break;
+    }
+  }
+  
+  if (hasMissingResponse) {
+    submitFormError.value = 'Please answer all questions';
+    submittingForm.value = false;
+    return;
+  }
   
   try {
     // Create responses object
@@ -636,10 +698,20 @@ async function submitForm() {
       responses[index] = value
     })
     
-    await api.post('/wellness/responses', {
-      form_id: selectedForm.value.id,
-      responses
-    })
+    // If we're editing an existing response, update it; otherwise create new
+    if (editingResponseId.value) {
+      await api.put(`/wellness/responses/${editingResponseId.value}`, {
+        responses
+      })
+    } else {
+      await api.post('/wellness/responses', {
+        form_id: selectedForm.value.id,
+        responses
+      })
+    }
+    
+    // Store the editing state for the success message
+    const wasEditing = editingResponseId.value;
     
     closeFormModal()
     
@@ -649,7 +721,10 @@ async function submitForm() {
     }
     
     // Show success message
-    alert('Form submitted successfully!')
+    alert(wasEditing ? 'Form response updated successfully!' : 'Form submitted successfully!')
+    
+    // Reset editing state
+    editingResponseId.value = null
   } catch (err) {
     submitFormError.value = err.response?.data?.message || 'Failed to submit form'
     console.error('Error submitting form:', err)
@@ -659,8 +734,74 @@ async function submitForm() {
 }
 
 function viewResponse(response) {
-  selectedResponse.value = response
-  showResponseModal.value = true
+  // Fetch the full form details to get the questions
+  api.get(`/wellness/${response.form_id}`)
+    .then(formResponse => {
+      const form = formResponse.data;
+
+      // Ensure options are properly set for multiple choice questions
+      if (form.questions) {
+        form.questions.forEach(question => {
+          if (question.question_type === 'multiple_choice' && !question.options && question.question_options) {
+            // Parse options from question_options if needed
+            try {
+              question.options = JSON.parse(question.question_options);
+            } catch (e) {
+              question.options = [];
+            }
+          }
+        });
+      }
+
+      // Parse responses
+      const parsedResponses = typeof response.responses === 'string' ? JSON.parse(response.responses) : response.responses;
+
+      // Add form questions to the response for display
+      const responseWithQuestions = {
+        ...response,
+        responses: parsedResponses,
+        form_questions: form.questions
+      };
+
+      selectedResponse.value = responseWithQuestions;
+      showResponseModal.value = true;
+    })
+    .catch(err => {
+      console.error('Error fetching form:', err);
+      // Fallback to showing response without questions
+      selectedResponse.value = response;
+      showResponseModal.value = true;
+    });
+}
+
+function editResponse(response) {
+  // First, fetch the full form details to get the questions
+  api.get(`/wellness/${response.form_id}`)
+    .then(formResponse => {
+      const form = formResponse.data;
+      
+      // Set the form with the response data and store the response ID for updating
+      selectedForm.value = form;
+      
+      // Parse responses and populate form
+      const parsedResponses = typeof response.responses === 'string' ? JSON.parse(response.responses) : response.responses;
+      formResponses.value = Array(form.questions.length).fill(null);
+      
+      // Populate responses
+      for (let i = 0; i < form.questions.length; i++) {
+        formResponses.value[i] = parsedResponses[i] !== undefined ? parsedResponses[i] : null;
+      }
+      
+      // Set editing ID
+      editingResponseId.value = response.id;
+      
+      // Open form modal
+      showFormModal.value = true;
+    })
+    .catch(err => {
+      console.error('Error fetching form:', err);
+      alert('Failed to load form details');
+    });
 }
 
 function viewCounselorResponse(response) {
@@ -721,8 +862,35 @@ async function createForm() {
   creatingForm.value = true
   createFormError.value = null
   
+  // Validate that all questions have text
+  const hasEmptyQuestion = newForm.questions.some(q => !q.question_text.trim());
+  if (hasEmptyQuestion) {
+    createFormError.value = 'All questions must have text';
+    creatingForm.value = false;
+    return;
+  }
+  
   try {
-    await api.post('/wellness', newForm)
+    // Prepare questions data for submission
+    const questionsData = newForm.questions.map(question => {
+      const q = {
+        question_text: question.question_text,
+        question_type: question.question_type
+      }
+      
+      // Include options only for multiple choice questions
+      if (question.question_type === 'multiple_choice' && question.options) {
+        q.options = question.options.filter(option => option.trim() !== '')
+      }
+      
+      return q
+    })
+    
+    await api.post('/wellness', {
+      title: newForm.title,
+      description: newForm.description,
+      questions: questionsData
+    })
     resetForm()
     
     // Reload forms
@@ -738,10 +906,52 @@ async function createForm() {
   }
 }
 
+function addQuestion() {
+  newForm.questions.push({
+    question_text: '',
+    question_type: 'text',
+    options: []
+  })
+}
+
+function onQuestionTypeChange(question) {
+  // Initialize options array for multiple choice questions
+  if (question.question_type === 'multiple_choice' && (!question.options || question.options.length === 0)) {
+    question.options = ['', '']
+  }
+  // Clear options for other question types
+  else if (question.question_type !== 'multiple_choice') {
+    question.options = []
+  }
+}
+
+function addOption(question) {
+  if (!question.options) {
+    question.options = []
+  }
+  question.options.push('')
+}
+
+function removeOption(question, index) {
+  if (question.options && question.options.length > 2) {
+    question.options.splice(index, 1)
+  }
+}
+
+function removeQuestion(index) {
+  newForm.questions.splice(index, 1)
+}
+
 function resetForm() {
   newForm.title = ''
   newForm.description = ''
-  newForm.form_type = ''
+  newForm.questions = [
+    {
+      question_text: '',
+      question_type: 'text',
+      options: []
+    }
+  ]
   createFormError.value = null
 }
 
@@ -972,6 +1182,13 @@ onMounted(async () => {
   color: #9CA3AF;
 }
 
+.response-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
+}
+
 .student-info {
   color: #374151;
   font-weight: 500;
@@ -1045,6 +1262,33 @@ onMounted(async () => {
 
 .btn-secondary:hover {
   background-color: #D1D5DB;
+}
+
+.btn-outline-primary {
+  background-color: transparent;
+  color: #8FBC8F;
+  border: 1px solid #8FBC8F;
+}
+
+.btn-outline-primary:hover {
+  background-color: #8FBC8F;
+  color: white;
+}
+
+.btn-outline-secondary {
+  background-color: transparent;
+  color: #6B7280;
+  border: 1px solid #6B7280;
+}
+
+.btn-outline-secondary:hover {
+  background-color: #6B7280;
+  color: white;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.875rem;
 }
 
 .error-message {
@@ -1123,6 +1367,10 @@ onMounted(async () => {
   margin-bottom: 15px;
 }
 
+.question-input {
+  margin-top: 10px;
+}
+
 .options {
   display: flex;
   flex-direction: column;
@@ -1147,6 +1395,63 @@ onMounted(async () => {
 .option-label input {
   margin-right: 12px;
   transform: scale(1.2);
+}
+
+.questions-container {
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  padding: 15px;
+  background-color: #F9FAFB;
+}
+
+.question-item {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: white;
+  border-radius: 8px;
+  border: 1px solid #E5E7EB;
+}
+
+.question-item:last-child {
+  margin-bottom: 10px;
+}
+
+.question-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.question-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.question-type {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.question-type label {
+  margin: 0;
+  font-weight: 500;
+}
+
+.question-type select {
+  width: auto;
+  min-width: 150px;
+}
+
+.btn-danger {
+  background-color: #EF4444;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #DC2626;
 }
 
 .response-modal .modal-body {
@@ -1184,6 +1489,25 @@ onMounted(async () => {
 .answer-item p:last-child {
   margin-bottom: 0;
   color: #374151;
+  font-weight: 500;
+}
+
+.selected-answer {
+  background-color: #F0FFF0;
+  border-left: 4px solid #8FBC8F;
+  padding: 10px 15px;
+  border-radius: 0 8px 8px 0;
+  margin-top: 10px;
+}
+
+.answer-label {
+  font-weight: 600;
+  color: #374151;
+  margin-right: 8px;
+}
+
+.answer-value {
+  color: #8FBC8F;
   font-weight: 500;
 }
 

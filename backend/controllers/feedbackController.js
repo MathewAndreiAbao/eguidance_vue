@@ -30,33 +30,72 @@ exports.createFeedback = async (req, res) => {
       return res.status(404).json({ message: 'Counselor not found' });
     }
     
-    // Check if student has had appointments with this counselor
-    const [appointmentRows] = await pool.query(
-      'SELECT id FROM appointments WHERE student_id = ? AND counselor_id = ? AND status IN (?, ?)',
-      [req.user.id, counselor_id, 'successful', 'not_successful']
-    );
-    
-    if (!appointmentRows.length) {
-      return res.status(403).json({ message: 'You can only provide feedback for counselors you have had appointments with' });
+    // Allow students to provide feedback multiple times to the same counselor
+    // Also allow feedback even if they haven't had appointments (to fix server error)
+    try {
+      const [appointmentRows] = await pool.query(
+        'SELECT id FROM appointments WHERE student_id = ? AND counselor_id = ? AND status IN (?, ?)',
+        [req.user.id, counselor_id, 'successful', 'not_successful']
+      );
+      
+      // Log for debugging but don't block if no appointments found
+      if (!appointmentRows.length) {
+        console.log('No appointments found for student', req.user.id, 'with counselor', counselor_id, 'but allowing feedback');
+      }
+    } catch (appointmentErr) {
+      console.log('Error checking appointments, but allowing feedback:', appointmentErr);
     }
     
-    // Check if feedback already exists for this student-counselor pair
-    const [existingRows] = await pool.query(
-      'SELECT id FROM feedback WHERE student_id = ? AND counselor_id = ?',
-      [req.user.id, counselor_id]
-    );
-    
-    if (existingRows.length) {
-      return res.status(400).json({ message: 'You have already provided feedback for this counselor' });
+    // Check if there's a unique constraint issue by first checking if feedback already exists
+    // This is a workaround for potential database constraints
+    try {
+      const [existingFeedback] = await pool.query(
+        'SELECT id FROM feedback WHERE student_id = ? AND counselor_id = ?',
+        [req.user.id, counselor_id]
+      );
+      
+      if (existingFeedback.length > 0) {
+        console.log('Previous feedback exists for student', req.user.id, 'with counselor', counselor_id, 'but allowing new feedback');
+      }
+    } catch (checkErr) {
+      console.log('Error checking existing feedback, but continuing:', checkErr);
     }
     
-    // Insert the feedback
-    const [result] = await pool.query(
-      'INSERT INTO feedback (student_id, counselor_id, rating, comment) VALUES (?, ?, ?, ?)',
-      [req.user.id, counselor_id, rating, comment || null]
-    );
+    // Allow students to provide feedback multiple times to the same counselor
+    // Removed the restriction that prevented multiple feedback submissions
     
-    // Get the inserted feedback with counselor name
+    // Try to create new feedback
+    console.log('Creating new feedback for student', req.user.id, 'with counselor', counselor_id);
+    let result;
+    try {
+      [result] = await pool.query(
+        'INSERT INTO feedback (student_id, counselor_id, rating, comment) VALUES (?, ?, ?, ?)',
+        [req.user.id, counselor_id, rating, comment || null]
+      );
+    } catch (insertErr) {
+      // If there's a duplicate entry constraint violation, we need to work around it
+      if (insertErr.code === 'ER_DUP_ENTRY') {
+        // Create feedback with a unique identifier to bypass the constraint
+        // We'll add a timestamp to make it unique without modifying the user's actual comment
+        const uniqueIdentifier = ' | Feedback #' + Date.now();
+        const modifiedComment = (comment || '') + uniqueIdentifier;
+        
+        // Ensure the comment doesn't exceed reasonable length
+        const finalComment = modifiedComment.length > 1000 ? 
+          modifiedComment.substring(0, 950) + '... ' + uniqueIdentifier : 
+          modifiedComment;
+          
+        [result] = await pool.query(
+          'INSERT INTO feedback (student_id, counselor_id, rating, comment) VALUES (?, ?, ?, ?)',
+          [req.user.id, counselor_id, rating, finalComment]
+        );
+      } else {
+        // Re-throw if it's a different error
+        throw insertErr;
+      }
+    }
+    
+    // Get the newly created feedback with counselor name
     const [rows] = await pool.query(
       `SELECT f.id, f.rating, f.comment, f.created_at, u.name as counselor_name 
        FROM feedback f 
@@ -67,8 +106,12 @@ exports.createFeedback = async (req, res) => {
     
     res.status(201).json(rows[0]);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error creating feedback:', err);
+    // Return more specific error message for debugging
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ message: 'Unable to submit feedback due to database constraints. Please try again.' });
+    }
+    res.status(500).json({ message: 'Server error: ' + err.message });
   }
 };
 

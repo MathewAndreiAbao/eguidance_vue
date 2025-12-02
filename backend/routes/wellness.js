@@ -16,6 +16,7 @@ router.post('/', authenticate, requireRole(['counselor']), wellnessController.cr
 
 // Student routes
 router.post('/responses', authenticate, requireRole(['student']), wellnessController.submitWellnessResponse);
+router.put('/responses/:id', authenticate, requireRole(['student']), wellnessController.updateWellnessResponse);
 router.get('/responses/student', authenticate, requireRole(['student']), wellnessController.getStudentResponses);
 router.get('/responses/student/:id', authenticate, requireRole(['student']), wellnessController.getResponseById);
 

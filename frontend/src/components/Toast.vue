@@ -1,5 +1,5 @@
 <template>
-  <div class="eg-toast" v-if="visible" :class="type">
+  <div class="eg-toast" v-if="visible && message" :class="type">
     <div class="eg-toast-inner">
       <strong>{{ title }}</strong>
       <div class="eg-toast-message">{{ message }}</div>

@@ -4,6 +4,15 @@ async function updateDatabase() {
   try {
     await pool.query("ALTER TABLE appointments MODIFY COLUMN status ENUM('pending','approved','successful','not_successful','cancelled') DEFAULT 'pending'");
     console.log('Appointments table updated successfully');
+        
+    // Remove the unique constraint on feedback table to allow multiple feedback per student-counselor pair
+    try {
+      await pool.query("ALTER TABLE feedback DROP INDEX unique_student_counselor");
+      console.log('Unique constraint removed from feedback table');
+    } catch (err) {
+      // Constraint might not exist, which is fine
+      console.log('Note: unique_student_counselor constraint might not exist or there was an issue removing it');
+    }
     
     // Also create the user_activity table if it doesn't exist
     await pool.query(`

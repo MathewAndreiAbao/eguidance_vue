@@ -15,11 +15,7 @@ exports.getWeeklyStats = async (req, res) => {
     // Default to current week if no date provided
     let weekStart;
     if (startDate) {
-      const selectedDate = new Date(startDate);
-      // Get Monday of the week containing the selected date
-      const day = selectedDate.getDay();
-      const diff = selectedDate.getDate() - day + (day === 0 ? -6 : 1);
-      weekStart = new Date(selectedDate.setDate(diff));
+      weekStart = new Date(startDate);
     } else {
       weekStart = new Date();
       // Get Monday of current week
@@ -32,8 +28,6 @@ exports.getWeeklyStats = async (req, res) => {
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 6);
     weekEnd.setHours(23, 59, 59, 999);
-    
-
 
     // Get all students who had appointments in this week
     const [students] = await pool.query(
@@ -43,9 +37,7 @@ exports.getWeeklyStats = async (req, res) => {
         u.email,
         COUNT(DISTINCT a.id) AS appointment_count,
         SUM(CASE WHEN a.status = 'successful' THEN 1 ELSE 0 END) AS successful_count,
-        SUM(CASE WHEN a.status = 'approved' THEN 1 ELSE 0 END) AS approved_count,
-        MIN(a.date) AS first_appointment,
-        MAX(a.date) AS last_appointment
+        SUM(CASE WHEN a.status = 'approved' THEN 1 ELSE 0 END) AS approved_count
       FROM users u
       INNER JOIN appointments a ON u.id = a.student_id
       WHERE a.counselor_id = ? 
@@ -133,179 +125,6 @@ exports.getMonthlyStats = async (req, res) => {
   }
 };
 
-// Get overall analytics summary
-exports.getAnalyticsSummary = async (req, res) => {
-  try {
-    if (req.user.role !== 'counselor') {
-      return res.status(403).json({ message: 'Forbidden - Only counselors can access analytics' });
-    }
-
-    // Get total appointments
-    const [totalAppointments] = await pool.query(
-      'SELECT COUNT(*) as count FROM appointments WHERE counselor_id = ?',
-      [req.user.id]
-    );
-
-    // Get total students
-    const [totalStudents] = await pool.query(
-      'SELECT COUNT(DISTINCT student_id) as count FROM appointments WHERE counselor_id = ?',
-      [req.user.id]
-    );
-
-    // Get appointment status counts
-    const [appointmentStatuses] = await pool.query(
-      `SELECT 
-        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-        SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
-        SUM(CASE WHEN status = 'successful' THEN 1 ELSE 0 END) as successful,
-        SUM(CASE WHEN status = 'not_successful' THEN 1 ELSE 0 END) as not_successful,
-        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled
-      FROM appointments WHERE counselor_id = ?`,
-      [req.user.id]
-    );
-
-    // Get total feedback
-    const [totalFeedback] = await pool.query(
-      'SELECT COUNT(*) as count FROM feedback WHERE counselor_id = ?',
-      [req.user.id]
-    );
-
-    // Get average feedback rating
-    const [avgFeedbackRating] = await pool.query(
-      'SELECT AVG(rating) as average FROM feedback WHERE counselor_id = ?',
-      [req.user.id]
-    );
-
-    // Get total wellness forms created
-    const [totalWellnessForms] = await pool.query(
-      'SELECT COUNT(*) as count FROM wellness_forms WHERE created_by = ?',
-      [req.user.id]
-    );
-
-    // Get total wellness responses
-    const [totalWellnessResponses] = await pool.query(
-      `SELECT COUNT(*) as count 
-       FROM wellness_responses wr
-       JOIN wellness_forms wf ON wr.form_id = wf.id
-       WHERE wf.created_by = ?`,
-      [req.user.id]
-    );
-
-    res.json({
-      totalAppointments: totalAppointments[0].count,
-      totalStudents: totalStudents[0].count,
-      appointmentStatuses: appointmentStatuses[0],
-      totalFeedback: totalFeedback[0].count,
-      averageFeedbackRating: avgFeedbackRating[0].average ? parseFloat(avgFeedbackRating[0].average).toFixed(1) : '0.0',
-      totalWellnessForms: totalWellnessForms[0].count,
-      totalWellnessResponses: totalWellnessResponses[0].count
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-// Get appointment trends data
-exports.getAppointmentTrends = async (req, res) => {
-  try {
-    if (req.user.role !== 'counselor') {
-      return res.status(403).json({ message: 'Forbidden - Only counselors can access analytics' });
-    }
-
-    const { period = 'monthly' } = req.query; // monthly, weekly, daily
-
-    let query;
-    switch (period) {
-      case 'daily':
-        query = `SELECT 
-          DATE_FORMAT(a.date, '%Y-%m-%d') as period,
-          COUNT(*) as total_appointments,
-          SUM(CASE WHEN a.status = 'successful' THEN 1 ELSE 0 END) as successful_appointments,
-          SUM(CASE WHEN a.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_appointments,
-          AVG(CASE WHEN f.rating IS NOT NULL THEN f.rating ELSE NULL END) as avg_feedback_rating
-        FROM appointments a
-        LEFT JOIN feedback f ON a.student_id = f.student_id AND a.counselor_id = f.counselor_id
-        WHERE a.counselor_id = ? 
-          AND a.date >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-        GROUP BY DATE(a.date)
-        ORDER BY period`;
-        break;
-      case 'weekly':
-        query = `SELECT 
-          DATE_FORMAT(a.date, '%Y-%u') as period,
-          COUNT(*) as total_appointments,
-          SUM(CASE WHEN a.status = 'successful' THEN 1 ELSE 0 END) as successful_appointments,
-          SUM(CASE WHEN a.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_appointments,
-          AVG(CASE WHEN f.rating IS NOT NULL THEN f.rating ELSE NULL END) as avg_feedback_rating
-        FROM appointments a
-        LEFT JOIN feedback f ON a.student_id = f.student_id AND a.counselor_id = f.counselor_id
-        WHERE a.counselor_id = ? 
-          AND a.date >= DATE_SUB(NOW(), INTERVAL 12 WEEK)
-        GROUP BY YEARWEEK(a.date)
-        ORDER BY period`;
-        break;
-      default: // monthly
-        query = `SELECT 
-          DATE_FORMAT(a.date, '%Y-%m') as period,
-          COUNT(*) as total_appointments,
-          SUM(CASE WHEN a.status = 'successful' THEN 1 ELSE 0 END) as successful_appointments,
-          SUM(CASE WHEN a.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_appointments,
-          AVG(CASE WHEN f.rating IS NOT NULL THEN f.rating ELSE NULL END) as avg_feedback_rating
-        FROM appointments a
-        LEFT JOIN feedback f ON a.student_id = f.student_id AND a.counselor_id = f.counselor_id
-        WHERE a.counselor_id = ? 
-          AND a.date >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
-        GROUP BY DATE_FORMAT(a.date, '%Y-%m')
-        ORDER BY period`;
-        break;
-    }
-    
-    const [trendData] = await pool.query(query, [req.user.id]);
-
-    res.json(trendData);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-// Get student engagement data
-exports.getStudentEngagement = async (req, res) => {
-  try {
-    if (req.user.role !== 'counselor') {
-      return res.status(403).json({ message: 'Forbidden - Only counselors can access analytics' });
-    }
-
-    const [engagementData] = await pool.query(
-      `SELECT 
-        u.id,
-        u.name,
-        u.email,
-        COUNT(DISTINCT a.id) as total_appointments,
-        COUNT(DISTINCT f.id) as total_feedback,
-        COUNT(DISTINCT wr.id) as total_wellness_responses,
-        AVG(f.rating) as avg_feedback_rating,
-        MAX(a.date) as last_appointment_date
-      FROM users u
-      LEFT JOIN appointments a ON u.id = a.student_id AND a.counselor_id = ?
-      LEFT JOIN feedback f ON u.id = f.student_id AND f.counselor_id = ?
-      LEFT JOIN wellness_responses wr ON u.id = wr.student_id 
-        AND wr.form_id IN (SELECT id FROM wellness_forms WHERE created_by = ?)
-      WHERE u.id IN (SELECT DISTINCT student_id FROM appointments WHERE counselor_id = ?)
-      GROUP BY u.id, u.name, u.email
-      ORDER BY total_appointments DESC, total_feedback DESC, total_wellness_responses DESC
-      LIMIT 20`,
-      [req.user.id, req.user.id, req.user.id, req.user.id]
-    );
-
-    res.json(engagementData);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
 // Helper function to get stats data (used by CSV and PDF exports)
 async function getStatsData(userId, viewMode, params) {
   let startDate, endDate, period;
@@ -314,15 +133,11 @@ async function getStatsData(userId, viewMode, params) {
     const { startDate: startDateParam } = params;
     let weekStart;
     if (startDateParam) {
-      const selectedDate = new Date(startDateParam);
+      weekStart = new Date(startDateParam);
       // Validate date
-      if (isNaN(selectedDate.getTime())) {
+      if (isNaN(weekStart.getTime())) {
         throw new Error('Invalid start date');
       }
-      // Get Monday of the week containing the selected date
-      const day = selectedDate.getDay();
-      const diff = selectedDate.getDate() - day + (day === 0 ? -6 : 1);
-      weekStart = new Date(selectedDate.setDate(diff));
     } else {
       weekStart = new Date();
       const day = weekStart.getDay();
@@ -338,8 +153,6 @@ async function getStatsData(userId, viewMode, params) {
     startDate = weekStart.toISOString().split('T')[0];
     endDate = weekEnd.toISOString().split('T')[0];
     period = { start: startDate, end: endDate };
-    
-
   } else {
     const { year, month } = params;
     let targetDate;
@@ -401,9 +214,7 @@ async function getStatsData(userId, viewMode, params) {
       u.email,
       COUNT(DISTINCT a.id) AS appointment_count,
       SUM(CASE WHEN a.status = 'successful' THEN 1 ELSE 0 END) AS successful_count,
-      SUM(CASE WHEN a.status = 'approved' THEN 1 ELSE 0 END) AS approved_count,
-      MIN(a.date) AS first_appointment,
-      MAX(a.date) AS last_appointment
+      SUM(CASE WHEN a.status = 'approved' THEN 1 ELSE 0 END) AS approved_count
     FROM users u
     INNER JOIN appointments a ON u.id = a.student_id
     WHERE a.counselor_id = ? 
@@ -663,3 +474,162 @@ exports.downloadMonthlyPDF = async (req, res) => {
   }
 };
 
+// Get overall analytics summary
+exports.getAnalyticsSummary = async (req, res) => {
+  try {
+    if (req.user.role !== 'counselor') {
+      return res.status(403).json({ message: 'Forbidden - Only counselors can access analytics' });
+    }
+
+    // Get total appointments
+    const [totalAppointments] = await pool.query(
+      'SELECT COUNT(*) as count FROM appointments WHERE counselor_id = ?',
+      [req.user.id]
+    );
+
+    // Get total students
+    const [totalStudents] = await pool.query(
+      'SELECT COUNT(DISTINCT student_id) as count FROM appointments WHERE counselor_id = ?',
+      [req.user.id]
+    );
+
+    // Get appointment status counts
+    const [appointmentStatuses] = await pool.query(
+      `SELECT 
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved,
+        SUM(CASE WHEN status = 'successful' THEN 1 ELSE 0 END) as successful,
+        SUM(CASE WHEN status = 'not_successful' THEN 1 ELSE 0 END) as not_successful,
+        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled
+      FROM appointments WHERE counselor_id = ?`,
+      [req.user.id]
+    );
+
+    // Get total feedback
+    const [totalFeedback] = await pool.query(
+      'SELECT COUNT(*) as count FROM feedback WHERE counselor_id = ?',
+      [req.user.id]
+    );
+
+    // Get average feedback rating
+    const [avgFeedbackRating] = await pool.query(
+      'SELECT AVG(rating) as average FROM feedback WHERE counselor_id = ?',
+      [req.user.id]
+    );
+
+    // Get total wellness forms created
+    const [totalWellnessForms] = await pool.query(
+      'SELECT COUNT(*) as count FROM wellness_forms WHERE created_by = ?',
+      [req.user.id]
+    );
+
+    // Get total wellness responses
+    const [totalWellnessResponses] = await pool.query(
+      `SELECT COUNT(*) as count 
+       FROM wellness_responses wr
+       JOIN wellness_forms wf ON wr.form_id = wf.id
+       WHERE wf.created_by = ?`,
+      [req.user.id]
+    );
+
+    res.json({
+      totalAppointments: totalAppointments[0].count,
+      totalStudents: totalStudents[0].count,
+      appointmentStatuses: appointmentStatuses[0],
+      totalFeedback: totalFeedback[0].count,
+      averageFeedbackRating: avgFeedbackRating[0].average ? parseFloat(avgFeedbackRating[0].average).toFixed(1) : 0,
+      totalWellnessForms: totalWellnessForms[0].count,
+      totalWellnessResponses: totalWellnessResponses[0].count
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get appointment trends data
+exports.getAppointmentTrends = async (req, res) => {
+  try {
+    if (req.user.role !== 'counselor') {
+      return res.status(403).json({ message: 'Forbidden - Only counselors can access analytics' });
+    }
+
+    const { period = 'monthly' } = req.query; // monthly, weekly, daily
+
+    let dateFormat, groupBy, interval;
+    switch (period) {
+      case 'daily':
+        dateFormat = '%Y-%m-%d';
+        groupBy = 'DATE(a.date)';
+        interval = '30 DAY';
+        break;
+      case 'weekly':
+        dateFormat = '%Y-%u';
+        groupBy = 'YEARWEEK(a.date)';
+        interval = '12 WEEK';
+        break;
+      default: // monthly
+        dateFormat = '%Y-%m';
+        groupBy = "DATE_FORMAT(a.date, '%Y-%m')";
+        interval = '12 MONTH';
+        break;
+    }
+
+    const [trendData] = await pool.query(
+      `SELECT 
+        DATE_FORMAT(a.date, ?) as period,
+        COUNT(*) as total_appointments,
+        SUM(CASE WHEN a.status = 'successful' THEN 1 ELSE 0 END) as successful_appointments,
+        SUM(CASE WHEN a.status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_appointments,
+        AVG(CASE WHEN f.rating IS NOT NULL THEN f.rating ELSE NULL END) as avg_feedback_rating
+      FROM appointments a
+      LEFT JOIN feedback f ON a.student_id = f.student_id AND a.counselor_id = f.counselor_id
+      WHERE a.counselor_id = ? 
+        AND a.date >= DATE_SUB(NOW(), INTERVAL ?)
+      GROUP BY ?
+      ORDER BY period`,
+      [dateFormat, req.user.id, interval, groupBy]
+    );
+
+    res.json(trendData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Get student engagement data
+exports.getStudentEngagement = async (req, res) => {
+  try {
+    if (req.user.role !== 'counselor') {
+      return res.status(403).json({ message: 'Forbidden - Only counselors can access analytics' });
+    }
+
+    const [engagementData] = await pool.query(
+      `SELECT 
+        u.id,
+        u.name,
+        u.email,
+        COUNT(DISTINCT a.id) as total_appointments,
+        COUNT(DISTINCT f.id) as total_feedback,
+        COUNT(DISTINCT wr.id) as total_wellness_responses,
+        AVG(f.rating) as avg_feedback_rating,
+        MAX(a.date) as last_appointment_date
+      FROM users u
+      LEFT JOIN appointments a ON u.id = a.student_id AND a.counselor_id = ?
+      LEFT JOIN feedback f ON u.id = f.student_id AND f.counselor_id = ?
+      LEFT JOIN wellness_responses wr ON u.id = wr.student_id 
+        AND wr.form_id IN (SELECT id FROM wellness_forms WHERE created_by = ?)
+      WHERE u.id IN (SELECT DISTINCT student_id FROM appointments WHERE counselor_id = ?)
+      GROUP BY u.id, u.name, u.email
+      ORDER BY total_appointments DESC, total_feedback DESC, total_wellness_responses DESC
+      LIMIT 20`,
+      [req.user.id, req.user.id, req.user.id, req.user.id]
+    );
+
+    res.json(engagementData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
